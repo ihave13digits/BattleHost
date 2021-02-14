@@ -7,28 +7,36 @@ from discord import Color, Embed
 
 from battlehost import *
 
-TOKEN, OWNER, PREFIX, SEED = get_bot_data()
-
-bot = commands.Bot(command_prefix=PREFIX)
-
-B = BattleHost(SEED)
-B.load_data()
+TOKEN, OWNER, PREFIX, SEED, B = None, None, None, None, None
 
 def debug():
     ID = str(OWNER)
     B.add_player(ID)
-    #B.players[ID][T.c] = 10000000000000000
-    #B.buy_ammo(ID, 'missile', 10000)
-    #B.buy_ammo(ID, 'torpedo', 5000)
-    #B.buy_ammo(ID, 'mortar', 1000)
-    #B.buy_ammo(ID, 'strike', 500)
-    #B.buy_ammo(ID, 'nuke', 100)
-    #B.step_cursor(ID, 10, 0)
-    #B.step_cursor(ID, 0, 10)
+    B.players[ID][T.c] = 10000000000000000
+    B.buy_ammo(ID, 'missile', 10000)
+    B.buy_ammo(ID, 'torpedo', 5000)
+    B.buy_ammo(ID, 'mortar', 1000)
+    B.buy_ammo(ID, 'strike', 500)
+    B.buy_ammo(ID, 'nuke', 100)
+    B.step_cursor(ID, 10, 0)
+    B.step_cursor(ID, 0, 10)
     #B.save_data()
     #B.attack_ship(ID, 10, 18, 'missile')
 
-debug()
+def start():
+    from sys import argv
+    global TOKEN, OWNER, PREFIX, SEED, B
+    TOKEN, OWNER, PREFIX, SEED = get_bot_data()
+    
+    if len(argv) > 1:
+        SEED = argv[1]
+        print("New seed is {}".format(SEED))
+    B = BattleHost(SEED)
+    B.load_data(SEED)
+    debug()
+
+start()
+bot = commands.Bot(command_prefix=PREFIX)
 
 def joined(ID):
     j = False
@@ -39,6 +47,7 @@ def joined(ID):
 def show_player(ID):
     response = '```\n'
     response += "Currency: {}\n".format(B.players[ID][T.c])
+    response += "Earth: {}\n".format(B.players[ID][T.i_earth])
     response += "Selected: {}\n".format(B.players[ID][T.s])
     response += "Position: ({}, {}) ({}, {})\n\n".format(B.players[ID][T.P][0], B.players[ID][T.P][1], B.players[ID][T.p][0], B.players[ID][T.p][1])
     if B.players[ID][T.a]:
@@ -140,6 +149,24 @@ async def select(ctx, i):
             response = 'Invalid Command'
             await ctx.send(response)
 
+@bot.command(name=T.c_mod)
+async def modify(ctx, i):
+    ID = str(ctx.author.id)
+    if joined(ID):
+        try:
+            X, Y = B.players[ID][T.P][0], B.players[ID][T.P][1]
+            x, y = B.players[ID][T.p][0], B.players[ID][T.p][1]
+            value = clamp(B.matrix[coords(X, Y)][T.m][coords(x, y)]+int(i), -B.players[ID][T.i_earth], len(T.tile))
+            B.modify_chunk(ID, value)
+            print(value)
+            if value < 0:
+                response = 'Mined {} units of earth'.format(value)
+            else:
+                response = 'Placed {} units of earth'.format(value)
+        except:
+            response = 'Invalid Command'
+        await ctx.send(response)
+
 @bot.command(name=T.c_buy_ammo)
 async def buy_ammo(ctx, A, *a):
     ID = str(ctx.author.id)
@@ -214,17 +241,17 @@ async def jump(ctx, d, *a):
 async def move(ctx, d, *a):
     ID = str(ctx.author.id)
     if joined(ID):
-        try:
-            amnt = 1
-            if a:
-                amnt += int(a[0])-1
-            for i in range(amnt):
-                x = T.dirs[d][1][0]
-                y = T.dirs[d][1][1]
-                B.step_cursor(ID, x, y)
-            response = view(ID)
-        except:
-            response = 'Invalid Command'    
+        #try:
+        amnt = 1
+        if a:
+            amnt += int(a[0])-1
+        for i in range(amnt):
+            x = T.dirs[d][1][0]
+            y = T.dirs[d][1][1]
+            B.step_cursor(ID, x, y)
+        response = view(ID)
+        #except:
+        #    response = 'Invalid Command'    
         await ctx.send(response)
 
 @bot.command(name=T.c_turn)
@@ -239,19 +266,51 @@ async def turn(ctx, d):
             response = 'Invalid Command'
         await ctx.send(response)
 
-### Shutdown ###
+### Owner Commands ###
+
+@bot.command(name='load')
+async def load(ctx, sd):
+    ID = str(ctx.author.id)
+    if ID == OWNER:
+        B.load_data(sd)
+
+@bot.command(name='restart')
+async def restart(ctx, *a):
+    can_do = False
+    response = "Permission Denied"
+    ID = str(ctx.author.id)
+    if ID == OWNER:
+        from os import system
+        can_do = True
+        await bot.close()
+    else:
+        await ctx.send(response)
+
+    if can_do:
+        from os import system
+        print("Restarting...")
+        if a:
+            cmd = './restart.py ./bot.py {}'.format(a[0])
+            if len(a) > 1:
+                if a[1] == 'save':
+                    B.save_data(SEED)
+            system(cmd)
+        else:
+            system('./restart.py ./bot.py')
+
 @bot.command(name='shutdown')
 async def shutdown(ctx, *a):
+    ID = str(ctx.author.id)
     can_do = False
-    response = 'Permission Needed'
-    if str(ctx.author.id) == OWNER:
+    response = 'Permission Denied'
+    if ID == OWNER:
         response = "Session Ended"
         can_do = True
     await ctx.send(response)
     if can_do:
         if a:
             if a[0] == 'save':
-                B.save_data()
+                B.save_data(SEED)
         print("Shutting down...")
         await bot.close()
 

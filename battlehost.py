@@ -37,6 +37,7 @@ def new_client(x, y):
     data = {
             T.i : ' ',
             T.c : 25000,
+            T.i_earth : 0,
             T.s : 0,
             T.p : [0, 0],
             T.P : [x, y],
@@ -69,7 +70,7 @@ def avrg_matrix(mtrx, f=int):
 
 def blend_matrix(mtrx):
     blnd = []
-    MAX = len(T.tile)
+    MAX = len(T.tile)-1
     w = T.chunk
     for y in range(w):
         for x in range(w):
@@ -87,7 +88,7 @@ def blend_matrix(mtrx):
 
 def blend_values(mtrx, w, W, H):
     blnd = []
-    MAX = len(T.tile)
+    MAX = len(T.tile)-1
     for y in range(w):
         for x in range(w):
             BLND = []
@@ -109,22 +110,18 @@ def blend_values(mtrx, w, W, H):
 def new_chunk(mn, mx):
     data = {}
     vals = []
-    avrg = 0
     for y in range(T.chunk):
         for x in range(T.chunk):
             cmn = randint(0, mn)
             cmx = randint(mn, mx)
             cmn = clamp(cmn, 0, cmx)
             vals.append([cmn, cmx])
-            #T.loaded += 1
     for o in range(T.octs):
         blnd = blend_values(vals, T.chunk, T.chunk_x, T.chunk_y)
-        #T.loaded += 1
     blndd = blend_matrix(blnd)
     for y in range(T.chunk):
         for x in range(T.chunk):
             data[coords(x, y)] = blndd[get_index(x, y, T.chunk)]
-            #T.loaded += 1
     return data
 
 def generate_world(sd):
@@ -221,21 +218,23 @@ class BattleHost:
 
 
 
-    def save_data(self):
+    def save_data(self, sd):
         import pickle
         data = {T.world_data : self.matrix, T.player_data : self.players}
         try:
-            with open(T.data_dir, 'wb') as f:
+            with open(path.join(T.data_dir, sd),'wb') as f:
                 pickle.dump(data, f)
                 f.close()
         except:
-            pass
+            from os import mkdir
+            mkdir(T.data_dir)
+            self.save_data(sd)
 
-    def load_data(self):
+    def load_data(self, sd):
         import pickle
         data = {}
         try:
-            with open(T.data_dir, 'rb') as f:
+            with open(path.join(T.data_dir, sd), 'rb') as f:
                 data = pickle.load(f)
                 f.close()
         except:
@@ -356,11 +355,18 @@ class BattleHost:
                             del(self.players[player][T.v][v])
 
     def place_ship(self, player):
+        size = int(T.img*.5)
         sel = self.players[player][T.s]
-        self.players[player][T.v][sel][T.P][0] = self.players[player][T.P][0]
-        self.players[player][T.v][sel][T.P][1] = self.players[player][T.P][1]
-        self.players[player][T.v][sel][T.p][0] = self.players[player][T.p][0]
-        self.players[player][T.v][sel][T.p][1] = self.players[player][T.p][1]
+        X, Y = self.players[player][T.P][0], self.players[player][T.P][1]
+        x, y = self.players[player][T.p][0], self.players[player][T.p][1]
+        if x < size: x += size
+        if x > T.chunk-size: x -= size
+        if y < size: y += size
+        if y > T.chunk-size: y -= size
+        self.players[player][T.v][sel][T.P][0] = X
+        self.players[player][T.v][sel][T.P][1] = Y
+        self.players[player][T.v][sel][T.p][0] = x
+        self.players[player][T.v][sel][T.p][1] = y
 
     def rotate_ship(self, player, r):
         sel = self.players[player][T.s]
@@ -376,6 +382,14 @@ class BattleHost:
     def step_cursor(self, player, x, y):
         self.players[player][T.p][0] = clamp(self.players[player][T.p][0]+x, 0, T.chunk-1)
         self.players[player][T.p][1] = clamp(self.players[player][T.p][1]+y, 0, T.chunk-1)
+
+
+
+    def modify_chunk(self, player, value):
+        X, Y = self.players[player][T.P][0], self.players[player][T.P][1]
+        x, y = self.players[player][T.p][0], self.players[player][T.p][1]
+        self.matrix[coords(X, Y)][T.m][coords(x, y)] += value
+        self.players[player][T.i_earth] -= value
 
 
 

@@ -33,6 +33,7 @@ class Term:
         self.c_jump = 'jump'
         self.c_move = 'move'
         self.c_turn = 'turn'
+        self.c_mod = 'mod'
         self.c_sel = 'sel'
         self.c_symbol = 'symbol'
         self.c_attack = 'attack'
@@ -43,6 +44,8 @@ class Term:
 
         self.c_amnt = 'amount'
         self.c_drct = 'direction'
+
+        self.i_earth = 'earth' 
 
         self.s_move = 'state_moving'
 
@@ -170,6 +173,11 @@ class Term:
                 self.c_sel : {
                     self.c_d : 'Changes selected ship',
                     self.c_a : 'index',
+                    self.c_o : ''
+                    },
+                self.c_mod : {
+                    self.c_d : 'Changes chunk depth at cursor position',
+                    self.c_a : 'integer',
                     self.c_o : ''
                     },
                 self.c_symbol : {
