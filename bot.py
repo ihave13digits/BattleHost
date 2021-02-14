@@ -11,7 +11,24 @@ TOKEN, OWNER, PREFIX, SEED = get_bot_data()
 
 bot = commands.Bot(command_prefix=PREFIX)
 
-B = BattleHost()
+B = BattleHost(SEED)
+B.load_data()
+
+def debug():
+    ID = str(OWNER)
+    B.add_player(ID)
+    #B.players[ID][T.c] = 10000000000000000
+    #B.buy_ammo(ID, 'missile', 10000)
+    #B.buy_ammo(ID, 'torpedo', 5000)
+    #B.buy_ammo(ID, 'mortar', 1000)
+    #B.buy_ammo(ID, 'strike', 500)
+    #B.buy_ammo(ID, 'nuke', 100)
+    #B.step_cursor(ID, 10, 0)
+    #B.step_cursor(ID, 0, 10)
+    #B.save_data()
+    #B.attack_ship(ID, 10, 18, 'missile')
+
+debug()
 
 def joined(ID):
     j = False
@@ -19,25 +36,40 @@ def joined(ID):
         j = True
     return j
 
-def show_players():
-    PLAYERS = ''
-    for player in B.players:
-        money, pstn, slct, ammos, ships = '', '', '', '', ''
-        money += '\n  Currency:{}'.format(B.players[player][T.c])
-        pstn += "\n  Position: World: {} Chunk: {}".format(B.players[player][T.P], B.players[player][T.p])
-        slct += "\n  Selected: {}".format(B.players[player][T.s])
-        for a in B.players[player][T.a]:
-            ammos += "\n  {}: {}".format(a, B.players[player][T.a][a])
-        for i, s in enumerate(B.players[player][T.v]):
-            ships += "\n  {}: World: {} Chunk: {}".format(B.players[player][T.v][i][T.n], B.players[player][T.v][i][T.P], B.players[player][T.v][i][T.p])
-        plyr = '{}:{}{}{}{}{}\n'.format(player, money, pstn, slct, ammos, ships)
-        PLAYERS += plyr
-    print(PLAYERS)
+def show_player(ID):
+    response = '```\n'
+    response += "Currency: {}\n".format(B.players[ID][T.c])
+    response += "Selected: {}\n".format(B.players[ID][T.s])
+    response += "Position: ({}, {}) ({}, {})\n\n".format(B.players[ID][T.P][0], B.players[ID][T.P][1], B.players[ID][T.p][0], B.players[ID][T.p][1])
+    if B.players[ID][T.a]:
+        response += "\nAmmunition:"
+        for a in B.players[ID][T.a]:
+            amnt = B.players[ID][T.a][a]
+            response += "\n  {}:\n  {}".format(a, amnt)
+    if B.players[ID][T.v]:
+        response += '\n\nVessels:\n'
+        for i, v in enumerate(B.players[ID][T.v]):
+            img = '  {}: {}\n'.format(i, B.players[ID][T.v][i][T.n])
+            hp = 0
+            for c, cell in enumerate(B.players[ID][T.v][i][T.i]):
+                end = ''
+                if c % T.img == 0:
+                    end = '\n'
+                img += T.part[cell].format(end)
+                hp += cell
+            X, Y = B.players[ID][T.v][i][T.P][0], B.players[ID][T.v][i][T.P][1]
+            x, y = B.players[ID][T.v][i][T.p][0], B.players[ID][T.v][i][T.p][1]
+            r = B.players[ID][T.v][i][T.r]
+            response += "{}\n    Health : {}\n    Position: ({}, {}) ({}, {})\n    Rotation: {}\n".format(img, hp, X,Y, x,y, r)
+    response += '```'
+    return response
 
-def view(ID, msg=''):
+def view(ID, vw='chunk', msg=''):
     response = "```"
-    response += B.show_chunk(B.players[ID][T.P][0], B.players[ID][T.P][1])
-    response += B.get_minimap()
+    if vw == 'chunk':
+        response += B.show_chunk(B.players[ID][T.P][0], B.players[ID][T.P][1])
+    if vw == 'world':
+        response += B.get_minimap()
     response += "```"
     if msg != '':
         response += "\n{}".format(msg)
@@ -49,15 +81,13 @@ def view(ID, msg=''):
 @bot.event
 async def on_ready():
     print("BattleHost Online")
-    B.start(SEED)
-    print("BattleHost Ready")
 
-bot.remove_command('help')
-@bot.command(name='help')
+bot.remove_command(T.c_help)
+@bot.command(name=T.c_help)
 async def help(ctx, *a):
     ID = str(ctx.author.id)
     response = "```\n{}\n\n\n".format(T.cmnds[T.c_help][T.c_d])
-    response += "Arguments:\n\n{}```".format(T.cmnds[T.c_help][T.c_a])
+    response += "Arguments:\n\n{}```".format(T.cmnds[T.c_help][T.c_o])
     try:
         if a:
             response = "```\n{}".format(T.cmnds[a[0]][T.c_d])
@@ -77,7 +107,6 @@ async def join(ctx):
     ID = str(ctx.author.id)
     if not joined(ID):
         response = view(ID, msg=B.add_player(ID).format(ctx.author.name))
-        show_players()
         await ctx.send(response)
 
 @bot.command(name=T.c_quit)
@@ -85,34 +114,20 @@ async def quit(ctx):
     ID = str(ctx.author.id)
     if joined(ID):
         response = B.player_quit(ID).format(ctx.author.name)
-        show_players()
+        await ctx.send(response)
+
+@bot.command(name=T.c_minimap)
+async def minimap(ctx):
+    ID = str(ctx.author.id)
+    if joined(ID):
+        response = view(ID, vw='world')
         await ctx.send(response)
 
 @bot.command(name=T.c_stat)
 async def stat(ctx):
     ID = str(ctx.author.id)
     if joined(ID):
-        response = '```\n'
-        response += "Currency:\n\n{}".format(B.players[ID][T.c])
-        if B.players[ID][T.a]:
-            response += "\n\n\nAmmunition:"
-            for a in B.players[ID][T.a]:
-                amnt = B.players[ID][T.a][a]
-                response += "\n  {}:\n  {}".format(a, amnt)
-        if B.players[ID][T.v]:
-            response += '\n\n\nVessels:'
-            for i, v in enumerate(B.players[ID][T.v]):
-                img = ''
-                for i, cell in enumerate(B.players[ID][T.v][i][T.i]):
-                    end = ''
-                    if i % 5 == 0:
-                        end = '\n'
-                    img.append(T.part[cell].format(end))
-                X, Y = B.players[ID][T.v][i][T.P], B.players[ID][T.v][i][T.P]
-                x, y = B.players[ID][T.v][i][T.p], B.players[ID][T.v][i][T.p]
-                r = B.players[ID][T.v][i][T.r]
-                response += "{}\n    Position: ({}, {}) ({}, {})\n    Rotation: {}\n\n".format(img, X,Y, x,y, r)
-        response += '```'
+        response = show_player(ID)
         await ctx.send(response)
 
 @bot.command(name=T.c_sel)
@@ -121,7 +136,6 @@ async def select(ctx, i):
     if joined(ID):
         try:
             B.players[ID][T.s] = clamp(int(i), 0, len(B.players[ID][T.v])-1)
-            show_players()
         except:
             response = 'Invalid Command'
             await ctx.send(response)
@@ -134,31 +148,50 @@ async def buy_ammo(ctx, A, *a):
             response = view(ID, msg=B.buy_ammo(ID, A, *a))
         except:
             response = 'Invalid Command'
-        show_players()
         await ctx.send(response)
 
 @bot.command(name=T.c_buy_ship)
 async def buy_ship(ctx, S, *a):
     ID = str(ctx.author.id)
     if joined(ID):
+        #try:
+        response = view(ID, msg=B.buy_ship(ID, S, *a))
+        #except:
+        #    response = 'Invalid Command'
+        await ctx.send(response)
+
+@bot.command(name=T.c_buy_zone)
+async def buy_zone(ctx, d):
+    ID = str(ctx.author.id)
+    if joined(ID):
         try:
-            response = view(ID, msg=B.buy_ship(ID, S, *a))
+            x = B.players[ID][T.P][0]+T.dirs[d][1][0]
+            y = B.players[ID][T.P][1]+T.dirs[d][1][1]
+            response = B.buy_zone(ID, x, y)
         except:
             response = 'Invalid Command'
-        show_players()
         await ctx.send(response)
 
 @bot.command(name=T.c_attack)
-async def attack(ctx, *a):
+async def attack(ctx, x, y, a):
     ID = str(ctx.author.id)
     if joined(ID) and a:
-        #try:
         response = view(ID)
-        B.attack_ship(ID, a[0])
+        #try:
+        B.attack_ship(ID, int(x), int(y), a)
         #except:
-        #    response = 'Invalid Command'
-        show_players()
+        #    pass
         await ctx.send(response)
+
+@bot.command(name=T.c_symbol)
+async def symbol(ctx, s):
+    ID = str(ctx.author.id)
+    if joined(ID):
+        if len(s) > 1:
+            s = s[0]
+        else:
+            s = ' '
+        B.player_symbol(ID, s)
 
 @bot.command(name=T.c_jump)
 async def jump(ctx, d, *a):
@@ -175,7 +208,6 @@ async def jump(ctx, d, *a):
             response = view(ID)
         except:
             response = 'Invalid Command'
-        show_players()
         await ctx.send(response)
 
 @bot.command(name=T.c_move)
@@ -193,7 +225,6 @@ async def move(ctx, d, *a):
             response = view(ID)
         except:
             response = 'Invalid Command'    
-        show_players()
         await ctx.send(response)
 
 @bot.command(name=T.c_turn)
@@ -206,7 +237,6 @@ async def turn(ctx, d):
                 B.players[ID][T.v][B.players[ID][T.s]][T.r] = d
         except:
             response = 'Invalid Command'
-        show_players()
         await ctx.send(response)
 
 ### Shutdown ###
