@@ -7,6 +7,7 @@ class Term:
         self.m = 'matrix'
         self.mm = 'minimap'
         self.n = 'name'
+        self.o = 'owner'
         self.p = 'chunk_position'
         self.P = 'world_position'
         self.r = 'rotation'
@@ -15,9 +16,11 @@ class Term:
         self.v = 'vessel'
         self.w = 'worth'
 
-        self.a_0 = 'torpedo'
-        self.a_1 = 'mortar'
-        self.a_2 = 'strike'
+        self.a_0 = 'missile'
+        self.a_1 = 'torpedo'
+        self.a_2 = 'mortar'
+        self.a_3 = 'strike'
+        self.a_4 = 'nuke'
 
         self.c_d = 'description'
         self.c_a = 'arguments'
@@ -30,13 +33,19 @@ class Term:
         self.c_jump = 'jump'
         self.c_move = 'move'
         self.c_turn = 'turn'
+        self.c_mod = 'mod'
         self.c_sel = 'sel'
+        self.c_symbol = 'symbol'
         self.c_attack = 'attack'
         self.c_buy_ammo = 'ammo'
         self.c_buy_ship = 'ship'
+        self.c_buy_zone = 'zone'
+        self.c_minimap = 'map'
 
         self.c_amnt = 'amount'
         self.c_drct = 'direction'
+
+        self.i_earth = 'earth' 
 
         self.s_move = 'state_moving'
 
@@ -45,35 +54,48 @@ class Term:
         self.b_prefix = 'PREFIX'
         self.b_seed = 'SEED'
 
+        self.r_low = .98
+        self.r_high = .98
+
         self.img = 5
         self.octs = 1
-        self.OCTS = 2
-        self.chunk = 16
-        self.world = 16
+        self.OCTS = 1
+        self.chunk_x = 1
+        self.chunk_y = 1
+        self.world_x = 1
+        self.world_y = 1
+        self.chunk = 20
+        self.world = 20
+        self.output = 48
+        self.loaded = 0
+        self.complete = int((self.world*self.world)+self.OCTS)
+        self.chunk_value = 10000
 
         self.data_dir = 'data'
         self.world_data = 'world_data'
         self.player_data = 'player_data'
 
-        self.tileset = ['░░','▒▒','▓▓','██']
-        self.tile = self.generate_tiles([30, 15, 25, 30])
+        self.tileset = ['██','▓▓','▒▒','░░','##','::',':.','.:','..','. ']
+        self.tile = self.generate_tiles([30, 20, 12, 15, 8, 5, 3, 3, 2, 2])
         self.part = [' {}','░{}','▒{}','▓{}','█{}']
 
         self.dirs = {
             'n' : ['▲', [0,-1]],
             's' : ['▼', [0,1]],
             'e' : ['▶', [1,0]],
-            'w' : ['◀', [-1,0]]
+            'w' : ['◀', [-1,0]],
             }
 
         self.ammo = {# Dimension, Worth, Damage
             self.a_0 : [1,0,1],
-            self.a_1 : [3,10,2],
-            self.a_2 : [5,50,2],
+            self.a_1 : [1,0,1],
+            self.a_2 : [3,10,2],
+            self.a_3 : [6,50,2],
+            self.a_4 : [7,50000,4],
             }
 
         self.ship = {# Worth, Image
-            'carrier' : [35000, [
+            'carrier' : [40000, [
                     0,0,4,0,0,
                     0,0,4,0,0,
                     0,0,4,0,0,
@@ -153,6 +175,16 @@ class Term:
                     self.c_a : 'index',
                     self.c_o : ''
                     },
+                self.c_mod : {
+                    self.c_d : 'Changes chunk depth at cursor position',
+                    self.c_a : 'integer',
+                    self.c_o : ''
+                    },
+                self.c_symbol : {
+                    self.c_d : 'Updates your map symbol',
+                    self.c_a : '',
+                    self.c_o : ''
+                    },
                 self.c_attack : {
                     self.c_d : 'Attacks at cursor position',
                     self.c_a : '',
@@ -167,7 +199,17 @@ class Term:
                     self.c_d : 'Buys ship',
                     self.c_a : '',
                     self.c_o : self.c_amnt
-                    }
+                    },
+                self.c_buy_zone : {
+                    self.c_d : 'Buys zone adjacent to you',
+                    self.c_a : '',
+                    self.c_o : ''
+                    },
+                self.c_minimap : {
+                    self.c_d : 'Shows world map',
+                    self.c_a : '',
+                    self.c_o : ''
+                    },
                 }
         for i, c in enumerate(data):
             end = ', '
@@ -181,17 +223,18 @@ class Term:
             data[self.c_jump][self.c_a] += d+end
             data[self.c_move][self.c_a] += d+end
             data[self.c_turn][self.c_a] += d+end
+            data[self.c_buy_zone][self.c_a] += d+end
         for i, a in enumerate(self.ammo):
             end = '\n'
             if i == len(self.ammo)-1:
                 end = ''
-            data[self.c_buy_ammo][self.c_a] += "{}{}{}".format(a, '.'*int(32-len(str("{}{}".format(a, self.ammo[a][1])))), self.ammo[a][1])+end
-            data[self.c_attack][self.c_a] += "{}{}{}".format(a, '.'*int(32-len(str("{}{}".format(a, self.ammo[a][1])))), self.ammo[a][1])+end
+            data[self.c_buy_ammo][self.c_a] += "{}{}{}".format(a, '.'*int(self.output-len(str("{}{}".format(a, self.ammo[a][1])))), self.ammo[a][1])+end
+            data[self.c_attack][self.c_a] += "{}{}{}".format(a, '.'*int(self.output-len(str("{}{}".format(a, self.ammo[a][1])))), self.ammo[a][1])+end
         for i, s in enumerate(self.ship):
             end = '\n'
             if i == len(self.ship)-1:
                 end = ''
-            data[self.c_buy_ship][self.c_a] += "{}{}{}".format(s, '.'*int(32-len(str("{}{}".format(s, self.ship[s][0])))), self.ship[s][0])+end
+            data[self.c_buy_ship][self.c_a] += "{}{}{}".format(s, '.'*int(self.output-len(str("{}{}".format(s, self.ship[s][0])))), self.ship[s][0])+end
         return data
 
     def generate_tiles(self, I):

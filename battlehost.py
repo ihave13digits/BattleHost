@@ -35,50 +35,48 @@ def can_move(x, y, w):
 
 def new_client(x, y):
     data = {
-            T.c : 100000,
+            T.i : ' ',
+            T.c : 25000,
+            T.i_earth : 0,
             T.s : 0,
             T.p : [0, 0],
             T.P : [x, y],
             T.v : [],
-            T.a : {
-                T.a_0 : 0,
-                T.a_1 : 0,
-                T.a_2 : 0
-                },
+            T.a : {},
             T.S : {
                 T.s_move : False,
                 }
             }
+    for a in T.ammo:
+        data[T.a][a] = 0
     return data
 
 def new_vessel(s):
     data = {
             T.n : s,
-            T.i : T.ship[s][1],
+            T.i : [],
             T.p : [0, 0],
             T.P : [0, 0],
             T.r : 'n'
             }
+    for cell in T.ship[s][1]:
+        data[T.i].append(cell)
     return data
 
 
 
-def avrg_matrix(mtrx):
-    avrg = 0
-    for v in mtrx:
-        avrg += mtrx[v]
-    avrg = round(avrg/len(mtrx))
-    return avrg
+def avrg_matrix(mtrx, f=int):
+    return f(sum(mtrx.values())/len(mtrx))
 
 def blend_matrix(mtrx):
     blnd = []
-    MAX = len(T.tile)
+    MAX = len(T.tile)-1
     w = T.chunk
     for y in range(w):
         for x in range(w):
             BLND = []
-            for j in range(-1, 1):
-                for i in range(-1, 1):
+            for j in range(-T.chunk_y, T.chunk_y):
+                for i in range(-T.chunk_x, T.chunk_x):
                     v = round( ((mtrx[get_index(x, y, w)][0]) + (mtrx[get_index(i, j, w)][0])) / 2 )
                     BLND.append(v+randint(-1, 1))
             bv = 0
@@ -88,14 +86,14 @@ def blend_matrix(mtrx):
             blnd.append(clamp(bv, 0, MAX))
     return blnd
 
-def blend_values(mtrx, w):
+def blend_values(mtrx, w, W, H):
     blnd = []
-    MAX = len(T.tile)
+    MAX = len(T.tile)-1
     for y in range(w):
         for x in range(w):
             BLND = []
-            for j in range(-1, 1):
-                for i in range(-1, 1):
+            for j in range(-H, H):
+                for i in range(-W, W):
                     cmn = round( ((mtrx[get_index(x, y, w)][0]) + (mtrx[get_index(i, j, w)][0])) / 2 )
                     cmx = round( ((mtrx[get_index(x, y, w)][1]) + (mtrx[get_index(i, j, w)][1])) / 2 )
                     BLND.append([cmn, cmx+randint(1, 5)])
@@ -112,20 +110,18 @@ def blend_values(mtrx, w):
 def new_chunk(mn, mx):
     data = {}
     vals = []
-    avrg = 0
     for y in range(T.chunk):
         for x in range(T.chunk):
             cmn = randint(0, mn)
             cmx = randint(mn, mx)
             cmn = clamp(cmn, 0, cmx)
             vals.append([cmn, cmx])
-
     for o in range(T.octs):
-        blnd = blend_values(vals, T.chunk)
-    blnd = blend_matrix(vals)
+        blnd = blend_values(vals, T.chunk, T.chunk_x, T.chunk_y)
+    blndd = blend_matrix(blnd)
     for y in range(T.chunk):
         for x in range(T.chunk):
-            data[coords(x, y)] = blnd[get_index(x, y, T.chunk)]
+            data[coords(x, y)] = blndd[get_index(x, y, T.chunk)]
     return data
 
 def generate_world(sd):
@@ -134,87 +130,118 @@ def generate_world(sd):
     data = {}
     MAX = len(T.tile)
     vals = []
-
     for y in range(T.world):
         for x in range(T.world):
-            mn = randint(0, int(MAX*.96))
-            mx = randint(int(MAX*.98), MAX)
-            mn = clamp(mn, 0, mx)
+            mn = randint(0, int(MAX*T.r_low))
+            mx = randint(int(MAX*T.r_high), MAX)
             vals.append([mn, mx])
-    
     blnd = vals
     for B in range(T.OCTS):
-        blnd = blend_values(blnd, T.world)
-
+        blnd = blend_values(blnd, T.world, T.world_x, T.world_y)
+        T.loaded += 1
+        show_progress('Generating World Values')
     for y in range(T.world):
         for x in range(T.world):
-            data[coords(x, y)] = new_chunk(
+            data[coords(x, y)] = {}
+            data[coords(x, y)][T.o] = ''
+            data[coords(x, y)][T.m] = new_chunk(
                     vals[get_index(x, y, T.world)][0], 
                     vals[get_index(x, y, T.world)][1])
-    
+            T.loaded += 1
+            show_progress('Building Chunks')
     return data
+
+def show_progress(txt):
+    prcnt = 100*T.loaded/T.complete
+    print('{}{}\n{}{}{:.1f}%'.format('\n'*64, txt, '.'*int(prcnt), ' '*(100-int(prcnt)), prcnt))
 
 
 
 class BattleHost:
 
-    def __init__(self):
+    def __init__(self, seed):
+        self.seed = seed
         self.players = {}
         self.matrix = {}
         
-    def start(self, sd):
-        self.generate_map(sd)
-        self.make_minimap()
 
 
-
-    def make_minimap(self):
+    def generate_maps(self, sd):
+        from time import time
+        start = time()
+        self.matrix = generate_world(sd)
         mini = []
         for y in range(T.world):
             for x in range(T.world):
-                v = avrg_matrix(self.matrix[coords(x, y)])
+                v = avrg_matrix(self.matrix[coords(x, y)][T.m])
                 mini.append(v)
         self.matrix[T.mm] = mini
-
-    def generate_map(self, sd):
-        self.matrix = generate_world(sd)
+        stop = time()
+        params = 'Dimensions:\n  World: ({},{})\n  Chunk: ({},{})\n\nWorld Octaves: {}\n\n  Blend Area: ({},{})\nChunk Octaves: {}\n  Blend Area:({},{})'.format(
+                T.world, T.world, T.chunk, T.chunk,
+                T.OCTS, T.world_x, T.world_y,
+                T.octs, T.chunk_x, T.chunk_y)
+        print(self.get_minimap())
+        print("\nGenerating and blending {} tiles took {} seconds with parameters:\n\n{}\n\n".format(int((T.world*T.world)*(T.chunk*T.chunk)), stop-start, params))
 
     def add_player(self, player):
         ID = str(player)
         if not (ID in self.players):
+            message = "Welcome, {}"
             p = [randint(0, T.world-1), randint(0, T.world-1)]
-            self.players[ID] = new_client(p[0], p[1])
-            return "Welcome, {}"
+            tries = 1
+            MAX = T.world*T.world
+            while self.matrix[coords(p[0], p[1])][T.o] != '':
+                p = [randint(0, T.world-1), randint(0, T.world-1)]
+                tries += 1
+                if tries >= MAX:
+                    message = "Sorry, {}.  The battlefield is full."
+                    break
+            if tries < MAX:
+                self.players[ID] = new_client(p[0], p[1])
+                self.matrix[coords(p[0], p[1])][T.o] = ID
+            
+            return message
 
     def player_quit(self,  player):
         ID = str(player)
         if ID in self.players:
+            for x in range(T.world):
+                for y in range(T.world):
+                    if self.matrix[coords(x, y)][T.o] == ID:
+                        self.matrix[coords(x, y)][T.o] = ''
             del(self.players[ID])
             return "Goodbye, {}"
 
+    def player_symbol(self, player, img):
+        self.players[player][T.i] = img
 
 
-    def save_data(self):
+
+    def save_data(self, sd):
         import pickle
         data = {T.world_data : self.matrix, T.player_data : self.players}
         try:
-            with open(T.data_dir, 'wb') as f:
+            with open(path.join(T.data_dir, sd),'wb') as f:
                 pickle.dump(data, f)
                 f.close()
         except:
-            pass
+            from os import mkdir
+            mkdir(T.data_dir)
+            self.save_data(sd)
 
-    def load_data(self):
+    def load_data(self, sd):
         import pickle
         data = {}
         try:
-            with open(T.data_dir, 'rb') as f:
+            with open(path.join(T.data_dir, sd), 'rb') as f:
                 data = pickle.load(f)
                 f.close()
         except:
-            pass
-        self.matrix = data[T.world_data]
-        self.players = data[T.player_data]
+            self.generate_maps(self.seed)
+        if data:
+            self.matrix = data[T.world_data]
+            self.players = data[T.player_data]
 
 
 
@@ -252,30 +279,94 @@ class BattleHost:
         msg = "You purchased {} {}{}.".format(count, S, plr)
         return msg
 
+    def buy_zone(self, player, x, y):
+        message = 'You purchased zone at coordinates ({}, {})'.format(x, y)
+        if coords(x, y) in self.matrix:
+            if self.players[player][T.c] >= T.chunk_value:
+                if self.matrix[coords(x, y)][T.o] == '':
+                    self.players[player][T.c] -= T.chunk_value
+                    self.matrix[coords(x, y)][T.o] = player
+                else:
+                    message = 'This zone is already owned'
+            else:
+                message = 'You need {} currency to purchase that'.format(T.chunk_value)
+        else:
+            message = 'Invalid Request: ({},{})'.format(x, y)
+        return message
 
 
-    def attack_ship(self, player, A):
-        if self.players[player][T.a][A] > 0:
-            dmg = T.ammo[A][2]
-            X, Y = self.players[player][T.P][0], self.players[player][T.P][1]
-            x, y = self.players[player][T.p][0], self.players[player][T.p][1]
-            for p in self.players:
-                for v, vessel in enumerate(self.players[p][T.v]):
-                    for i in range(T.img):
-                        for j in range(T.img):
-                            if self.players[p][T.v][v][T.i][get_index(i, j, T.img)] != 0 and (
-                                    (self.players[p][T.v][v][T.P][0] == X and self.players[p][T.v][v][T.P][1] == Y) and
-                                    (self.players[p][T.v][v][T.p][0] == x and self.players[p][T.v][v][T.p][1] == y)):
-                                    
-                                    print('hit')
-                                    self.players[p][T.v][v][T.i][get_index(i, j, 5)] = clamp(self.players[p][T.v][v][T.i][get_index(i, j, 5)]-dmg, 0, 4)
+
+    def get_area(self, player, A):
+        data = []
+        size = round(T.ammo[A][0]*.5)
+        x, y = self.players[player][T.p][0], self.players[player][T.p][1]
+        if size >= 1:
+            for j in range(-size+1, size):
+                for i in range(-size+1, size):
+                    if ((x+i >= 0 and x+i < T.chunk) and
+                        (y+j >= 0 and y+j < T.chunk)):
+                        ofst = get_index(x+i, y+j, T.chunk)
+                        data.append(ofst)
+        else:
+            data.append(get_index(x, y, T.chunk))
+        
+        debug = ''
+        for Y in range(T.chunk):
+            for X in range(T.chunk):
+                if X % T.chunk == 0:
+                    debug += '\n'
+                cell = '--'
+                i = get_index(X, Y, T.chunk)
+                for h in data:
+                    if i == h:
+                        cell = '[]'
+                debug += '{}'.format(cell)
+        print(debug)
+
+        return data
+
+    def take_damage(self, player, v, atk, dmg):
+        x, y = self.players[player][T.v][v][T.p][0], self.players[player][T.v][v][T.p][1]
+        size = int(T.img*.5)
+        for i in range(-size, size):
+            for j in range(-size, size):
+                ship_index = get_index(x+i, y+j, T.chunk)
+                if ship_index == atk:
+                    #print('{} ship {} hit at ({},{})'.format(player, self.players[player][T.v][v][T.n], x+i, y+j))
+                    self.players[player][T.v][v][T.i][get_index(i+size, j+size, T.img)] = clamp(
+                            self.players[player][T.v][v][T.i][get_index(i+size+1, j+size+1, T.img)]-dmg, 0, 4)
+
+    def attack_ship(self, player, X, Y, A):
+        if self.matrix[coords(X, Y)][T.o] != '':
+            own = self.matrix[coords(X, Y)][T.o]
+            if self.players[player][T.a][A] > 0:
+                self.players[player][T.a][A] -= 1
+                dmg = T.ammo[A][2]
+                for atk in self.get_area(player, A):
+                    for v, V in enumerate(self.players[own][T.v]):
+                        if ((self.players[own][T.v][v][T.P][0] == X) and
+                            (self.players[own][T.v][v][T.P][1] == Y)
+                                ):
+                            self.take_damage(own, v, atk, dmg)
+                        hp = 0
+                        for val in self.players[player][T.v][v][T.i]:
+                            hp += val
+                        if hp <= 0:
+                            del(self.players[player][T.v][v])
 
     def place_ship(self, player):
+        size = int(T.img*.5)
         sel = self.players[player][T.s]
-        self.players[player][T.v][sel][T.P][0] = self.players[player][T.P][0]
-        self.players[player][T.v][sel][T.P][1] = self.players[player][T.P][1]
-        self.players[player][T.v][sel][T.p][0] = self.players[player][T.p][0]
-        self.players[player][T.v][sel][T.p][1] = self.players[player][T.p][1]
+        X, Y = self.players[player][T.P][0], self.players[player][T.P][1]
+        x, y = self.players[player][T.p][0], self.players[player][T.p][1]
+        if x < size: x += size
+        if x > T.chunk-size: x -= size
+        if y < size: y += size
+        if y > T.chunk-size: y -= size
+        self.players[player][T.v][sel][T.P][0] = X
+        self.players[player][T.v][sel][T.P][1] = Y
+        self.players[player][T.v][sel][T.p][0] = x
+        self.players[player][T.v][sel][T.p][1] = y
 
     def rotate_ship(self, player, r):
         sel = self.players[player][T.s]
@@ -284,12 +375,21 @@ class BattleHost:
 
 
     def step_player(self, player, x, y):
-        self.players[player][T.P][0] = clamp(self.players[player][T.P][0]+x, 0, T.world-1)
-        self.players[player][T.P][1] = clamp(self.players[player][T.P][1]+y, 0, T.world-1)
+        if self.matrix[coords(self.players[player][T.P][0]+x, self.players[player][T.P][1]+y)][T.o] == player:
+            self.players[player][T.P][0] = clamp(self.players[player][T.P][0]+x, 0, T.world-1)
+            self.players[player][T.P][1] = clamp(self.players[player][T.P][1]+y, 0, T.world-1)
 
     def step_cursor(self, player, x, y):
         self.players[player][T.p][0] = clamp(self.players[player][T.p][0]+x, 0, T.chunk-1)
         self.players[player][T.p][1] = clamp(self.players[player][T.p][1]+y, 0, T.chunk-1)
+
+
+
+    def modify_chunk(self, player, value):
+        X, Y = self.players[player][T.P][0], self.players[player][T.P][1]
+        x, y = self.players[player][T.p][0], self.players[player][T.p][1]
+        self.matrix[coords(X, Y)][T.m][coords(x, y)] += value
+        self.players[player][T.i_earth] -= value
 
 
 
@@ -315,8 +415,15 @@ class BattleHost:
 
     def get_minimap(self):
         data = []
-        for cell in self.matrix[T.mm]:
-            data.append(T.tile[cell])
+        for y in range(T.world):
+            for x in range(T.world):
+                val = self.matrix[T.mm][get_index(x, y, T.world)]
+                if self.matrix[coords(x, y)][T.o] != '':
+                    player_tile = self.players[self.matrix[coords(x, y)][T.o]][T.i]
+                    data.append('{}{}'.format(T.tile[val][0], player_tile))
+                else:
+                    val = self.matrix[T.mm][get_index(x, y, T.world)]
+                    data.append(T.tile[val])
 
         for player in self.players:
             x, y = self.players[player][T.P][0], self.players[player][T.P][1]
@@ -344,30 +451,25 @@ class BattleHost:
         data = []
         for y in range(T.chunk):
             for x in range(T.chunk):
-                data.append(T.tile[self.matrix[coords(X, Y)][coords(x, y)]])
+                data.append(T.tile[self.matrix[coords(X, Y)][T.m][coords(x, y)]])
         return data
 
     def overlay_chunk(self, X, Y):
+        size = int(T.img*.5)
         data = self.get_chunk(X, Y)
-        for player in self.players:
-            for vessel in range(len(self.players[player][T.v])):
-                if (self.players[player][T.v][vessel][T.P][0] == X and
-                    self.players[player][T.v][vessel][T.P][1] == Y):
-                    for y in range(T.img):
-                        for x in range(T.img):
-                            if (self.players[player][T.v][vessel][T.i][get_index(x, y, T.img)] != 0 and
-                                get_index(x, y, T.chunk) >= 0 and get_index(x, y, T.chunk) <= len(self.matrix[coords(X, Y)])-1):
-                                vx, vy = self.players[player][T.v][vessel][T.p][0], self.players[player][T.v][vessel][T.p][1]
-                                i = get_index(x+vx, y+vy, T.chunk)
-                                try:
-                                    data[i] = T.part[self.players[player][T.v][vessel][T.i][get_index(x, y, T.img)]].format(
-                                            T.dirs[self.players[player][T.v][vessel][T.r]][0])
-                                except:
-                                    pass
-            if (self.players[player][T.P][0] == X and
-                self.players[player][T.P][1] == Y):
-                i = get_index(self.players[player][T.p][0], self.players[player][T.p][1], T.chunk)
-                data[i] = '[]'
+        player = self.matrix[coords(X, Y)][T.o]
+        for vessel in range(len(self.players[player][T.v])):
+            if (self.players[player][T.v][vessel][T.P][0] == X and
+                self.players[player][T.v][vessel][T.P][1] == Y):
+                for y in range(T.img):
+                    for x in range(T.img):
+                        if self.players[player][T.v][vessel][T.i][get_index(x, y, T.img)] != 0:
+                            vx, vy = self.players[player][T.v][vessel][T.p][0], self.players[player][T.v][vessel][T.p][1]
+                            i = get_index(x+vx-size, y+vy-size, T.chunk)
+                            data[i] = T.part[self.players[player][T.v][vessel][T.i][get_index(x, y, T.img)]].format(
+                                    T.dirs[self.players[player][T.v][vessel][T.r]][0])
+        i = get_index(self.players[player][T.p][0], self.players[player][T.p][1], T.chunk)
+        data[i] = '[]'
         return data
 
 
