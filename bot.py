@@ -148,11 +148,35 @@ async def stat(ctx):
 async def select(ctx, i):
     ID = str(ctx.author.id)
     if joined(ID):
+        response = T.R_invalid
         try:
             B.players[ID][T.s] = clamp(int(i), 0, len(B.players[ID][T.v])-1)
+            response = 'Your symbol is now {}'.format(B.players[ID][T.s])
         except:
-            response = T.R_invalid
-            await ctx.send(response)
+            pass
+        await ctx.send(response)
+
+@bot.command(name=T.c_buy)
+async def buy(ctx, m, *a):
+    ID = str(ctx.author.id)
+    if joined(ID):
+        response = T.R_invalid
+        try:
+            response = B.buy_material(ID, m, *a)
+        except:
+            pass
+        await ctx.send(response)
+
+@bot.command(name=T.c_sell)
+async def sell(ctx, m, *a):
+    ID = str(ctx.author.id)
+    if joined(ID):
+        response = T.R_invalid
+        try:
+            response = B.sell_material(ID, m, *a)
+        except:
+            pass
+        await ctx.send(response)
 
 @bot.command(name=T.c_mine)
 async def mine(ctx, i):
