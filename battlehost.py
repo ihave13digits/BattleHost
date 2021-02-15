@@ -1,5 +1,5 @@
 from os import path
-from random import randint, seed
+from random import randint, choice, seed
 
 from terms import Term
 T = Term()
@@ -24,6 +24,21 @@ def coords(x, y):
 
 
 
+def get_drops(m):
+    data = {}
+    choices = []
+    count = 0
+    for drop in T.drops[m]:
+        data[drop] = 0
+        for i in range(T.drops[m][drop]):
+            choices.append(drop)
+            count += 1
+    for d in range(count):
+        data[choice(choices)] += 1
+    return data
+
+
+
 def can_move(x, y, w):
     data = False
     if ((x >= 0 and x < w) and
@@ -37,18 +52,20 @@ def new_client(x, y):
     data = {
             T.i : ' ',
             T.c : 25000,
-            T.i_earth : 0,
             T.s : 0,
             T.p : [0, 0],
             T.P : [x, y],
             T.v : [],
             T.a : {},
+            T.I : {},
             T.S : {
                 T.s_move : False,
                 }
             }
     for a in T.ammo:
         data[T.a][a] = 0
+    for i in T.item:
+        data[T.I][i] = 0
     return data
 
 def new_vessel(s):
@@ -170,12 +187,7 @@ class BattleHost:
         from time import time
         start = time()
         self.matrix = generate_world(sd)
-        mini = []
-        for y in range(T.world):
-            for x in range(T.world):
-                v = avrg_matrix(self.matrix[coords(x, y)][T.m])
-                mini.append(v)
-        self.matrix[T.mm] = mini
+        self.generate_minimap()
         stop = time()
         params = 'Dimensions:\n  World: ({},{})\n  Chunk: ({},{})\n\nWorld Octaves: {}\n\n  Blend Area: ({},{})\nChunk Octaves: {}\n  Blend Area:({},{})'.format(
                 T.world, T.world, T.chunk, T.chunk,
@@ -183,6 +195,14 @@ class BattleHost:
                 T.octs, T.chunk_x, T.chunk_y)
         print(self.get_minimap())
         print("\nGenerating and blending {} tiles took {} seconds with parameters:\n\n{}\n\n".format(int((T.world*T.world)*(T.chunk*T.chunk)), stop-start, params))
+
+    def generate_minimap(self):
+        mini = []
+        for y in range(T.world):
+            for x in range(T.world):
+                v = avrg_matrix(self.matrix[coords(x, y)][T.m])
+                mini.append(v)
+        self.matrix[T.mm] = mini
 
     def add_player(self, player):
         ID = str(player)
@@ -385,11 +405,44 @@ class BattleHost:
 
 
 
-    def modify_chunk(self, player, value):
+    def modify_chunk(self, player, value, mode):
         X, Y = self.players[player][T.P][0], self.players[player][T.P][1]
         x, y = self.players[player][T.p][0], self.players[player][T.p][1]
-        self.matrix[coords(X, Y)][T.m][coords(x, y)] += value
-        self.players[player][T.i_earth] -= value
+        count = 0
+        if mode == T.c_mine:
+            value = clamp(value, 0, self.matrix[coords(X, Y)][T.m][coords(x, y)])
+            while count < value:
+                self.matrix[coords(X, Y)][T.m][coords(x, y)] -= 1
+                self.players[player][T.I][T.collect[count]] += 1
+                count += 1
+            message = 'You mined {} units of earth'.format(count)
+        if mode == T.c_pile:
+            value = clamp(value, 0, (len(T.tile)-1)-self.matrix[coords(X, Y)][T.m][coords(x, y)])
+            while count < value:
+                if self.players[player][T.I][T.collect[count]] > 0:
+                    self.matrix[coords(X, Y)][T.m][coords(x, y)] += 1
+                    self.players[player][T.I][T.collect[count]] -= 1
+                else:
+                    value -= 1
+                count += 1
+            message = 'You used {} units of earth'.format(count)
+        return message
+
+    def refine_material(self, player, m, *a):
+        data = get_drops(m)
+        self.players[player][T.I][m] -= 1
+        if a:
+            for i in range(int(a[0])-1):
+                if self.players[player][T.I][m] > 0:
+                    itr = get_drops(m)
+                    for d in itr:
+                        data[d] += itr[d]
+                        self.players[player][T.I][m] -= 1
+        response = 'Collected:'
+        for drop in data:
+            response += '\n  {}: {}'.format(drop, data[drop])
+            self.players[player][T.I][drop] += data[drop]
+        return response
 
 
 

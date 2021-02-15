@@ -4,6 +4,7 @@ class Term:
         self.a = 'ammunition'
         self.c = 'currency'
         self.i = 'image'
+        self.I = 'inventory'
         self.m = 'matrix'
         self.mm = 'minimap'
         self.n = 'name'
@@ -33,7 +34,9 @@ class Term:
         self.c_jump = 'jump'
         self.c_move = 'move'
         self.c_turn = 'turn'
-        self.c_mod = 'mod'
+        self.c_refine = 'refine'
+        self.c_mine = 'mine'
+        self.c_pile = 'pile'
         self.c_sel = 'sel'
         self.c_symbol = 'symbol'
         self.c_attack = 'attack'
@@ -45,7 +48,8 @@ class Term:
         self.c_amnt = 'amount'
         self.c_drct = 'direction'
 
-        self.i_earth = 'earth' 
+        self.R_invalid = 'Invalid Command'
+        self.R_permission = 'Permission Denied'
 
         self.s_move = 'state_moving'
 
@@ -53,6 +57,70 @@ class Term:
         self.b_owner = 'OWNER'
         self.b_prefix = 'PREFIX'
         self.b_seed = 'SEED'
+
+        self.m_sediment = 'sediment'
+        self.m_boulder = 'boulder'
+        self.m_gravel = 'gravel'
+        self.m_stone = 'stone'
+        self.m_rock = 'rock'
+        self.m_dirt = 'dirt'
+        self.m_sand = 'sand'
+        self.m_silt = 'silt'
+        self.m_soil = 'soil'
+
+        self.m_coal = 'coal'
+        self.m_clay = 'clay'
+        self.m_lime = 'lime'
+
+        self.m_iron = 'iron'
+        self.m_gold = 'gold'
+        self.m_silver = 'silver'
+        self.m_copper = 'copper'
+
+        self.item = [
+                self.m_sediment, self.m_boulder, self.m_gravel,
+                self.m_stone, self.m_rock,
+                self.m_dirt, self.m_sand, self.m_silt, self.m_soil,
+                self.m_coal, self.m_clay, self.m_lime,
+                self.m_iron, self.m_gold, self.m_silver, self.m_copper
+                ]
+
+        self.drops = {
+            self.m_sediment : {
+                self.m_clay : 1,
+                self.m_silt : 1,
+                },
+            self.m_boulder : {
+                self.m_rock : 10,
+                self.m_stone : 5,
+                },
+            self.m_stone : {
+                self.m_gold : 1,
+                self.m_silver : 2,
+                self.m_copper : 4,
+                self.m_gravel : 8,
+                },
+            self.m_rock : {
+                self.m_iron : 4,
+                self.m_gravel : 8,
+                },
+            self.m_dirt : {
+                self.m_sand : 1,
+                self.m_clay : 2,
+                self.m_silt : 4,
+                self.m_soil : 8,
+                self.m_gravel : 1,
+                },
+            self.m_silt : {
+                self.m_clay : 1,
+                self.m_sand : 2,
+                self.m_gravel : 2,
+                },
+            self.m_sand : {
+                self.m_clay : 1,
+                self.m_gravel : 1,
+                },
+            }
 
         self.r_low = .98
         self.r_high = .98
@@ -76,9 +144,10 @@ class Term:
         self.player_data = 'player_data'
 
         self.tileset = ['██','▓▓','▒▒','░░','##','::',':.','.:','..','. ']
-        self.tile = self.generate_tiles([30, 20, 12, 15, 8, 5, 3, 3, 2, 2])
+        self.collect, self.tile = self.generate_tiles([30, 20, 12, 15, 8, 5, 3, 3, 2, 2],
+                [self.m_sediment,self.m_silt,self.m_sand,self.m_sand,self.m_soil,
+                self.m_dirt,self.m_gravel,self.m_stone,self.m_rock,self.m_boulder])
         self.part = [' {}','░{}','▒{}','▓{}','█{}']
-
         self.dirs = {
             'n' : ['▲', [0,-1]],
             's' : ['▼', [0,1]],
@@ -175,8 +244,18 @@ class Term:
                     self.c_a : 'index',
                     self.c_o : ''
                     },
-                self.c_mod : {
-                    self.c_d : 'Changes chunk depth at cursor position',
+                self.c_refine : {
+                    self.c_d : 'Refines a chosen material',
+                    self.c_a : '',
+                    self.c_o : ''
+                    },
+                self.c_mine : {
+                    self.c_d : 'Sets chunk depth at cursor position',
+                    self.c_a : 'integer',
+                    self.c_o : ''
+                    },
+                self.c_pile : {
+                    self.c_d : 'Sets chunk depth at cursor position',
                     self.c_a : 'integer',
                     self.c_o : ''
                     },
@@ -235,11 +314,19 @@ class Term:
             if i == len(self.ship)-1:
                 end = ''
             data[self.c_buy_ship][self.c_a] += "{}{}{}".format(s, '.'*int(self.output-len(str("{}{}".format(s, self.ship[s][0])))), self.ship[s][0])+end
+        for i, d in enumerate(self.drops):
+            end = ', '
+            if i == len(self.drops)-1:
+                end = ''
+            data[self.c_refine][self.c_a] += "{}{}".format(d, end)
+
         return data
 
-    def generate_tiles(self, I):
+    def generate_tiles(self, I, C):
+        clct = []
         data = []
         for i, t in enumerate(self.tileset):
             for itr in range(I[i]):
+                clct.append(C[i])
                 data.append(t)
-        return data
+        return clct, data

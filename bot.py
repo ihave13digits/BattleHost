@@ -47,7 +47,6 @@ def joined(ID):
 def show_player(ID):
     response = '```\n'
     response += "Currency: {}\n".format(B.players[ID][T.c])
-    response += "Earth: {}\n".format(B.players[ID][T.i_earth])
     response += "Selected: {}\n".format(B.players[ID][T.s])
     response += "Position: ({}, {}) ({}, {})\n\n".format(B.players[ID][T.P][0], B.players[ID][T.P][1], B.players[ID][T.p][0], B.players[ID][T.p][1])
     if B.players[ID][T.a]:
@@ -55,6 +54,11 @@ def show_player(ID):
         for a in B.players[ID][T.a]:
             amnt = B.players[ID][T.a][a]
             response += "\n  {}:\n  {}".format(a, amnt)
+    if sum(B.players[ID][T.I].values()) > 0:
+        response += "\nInventory:"
+        for itm in B.players[ID][T.I]:
+            if B.players[ID][T.I][itm] > 0:
+                response += "\n  {}: {}".format(itm, B.players[ID][T.I][itm])
     if B.players[ID][T.v]:
         response += '\n\nVessels:\n'
         for i, v in enumerate(B.players[ID][T.v]):
@@ -78,6 +82,7 @@ def view(ID, vw='chunk', msg=''):
     if vw == 'chunk':
         response += B.show_chunk(B.players[ID][T.P][0], B.players[ID][T.P][1])
     if vw == 'world':
+        B.generate_minimap()
         response += B.get_minimap()
     response += "```"
     if msg != '':
@@ -146,25 +151,41 @@ async def select(ctx, i):
         try:
             B.players[ID][T.s] = clamp(int(i), 0, len(B.players[ID][T.v])-1)
         except:
-            response = 'Invalid Command'
+            response = T.R_invalid
             await ctx.send(response)
 
-@bot.command(name=T.c_mod)
-async def modify(ctx, i):
+@bot.command(name=T.c_mine)
+async def mine(ctx, i):
     ID = str(ctx.author.id)
     if joined(ID):
         try:
             X, Y = B.players[ID][T.P][0], B.players[ID][T.P][1]
             x, y = B.players[ID][T.p][0], B.players[ID][T.p][1]
-            value = clamp(B.matrix[coords(X, Y)][T.m][coords(x, y)]+int(i), -B.players[ID][T.i_earth], len(T.tile))
-            B.modify_chunk(ID, value)
-            print(value)
-            if value < 0:
-                response = 'Mined {} units of earth'.format(value)
-            else:
-                response = 'Placed {} units of earth'.format(value)
+            response = B.modify_chunk(ID, int(i), T.c_mine)
         except:
-            response = 'Invalid Command'
+            response = T.R_invalid
+        await ctx.send(response)
+
+@bot.command(name=T.c_pile)
+async def pile(ctx, i):
+    ID = str(ctx.author.id)
+    if joined(ID):
+        try:
+            X, Y = B.players[ID][T.P][0], B.players[ID][T.P][1]
+            x, y = B.players[ID][T.p][0], B.players[ID][T.p][1]
+            response = B.modify_chunk(ID, int(i), T.c_pile)
+        except:
+            response = T.R_invalid
+        await ctx.send(response)
+
+@bot.command(name=T.c_refine)
+async def refine(ctx, m, *a):
+    ID = str(ctx.author.id)
+    if joined(ID):
+        try:
+            response = B.refine_material(ID, m, *a)
+        except:
+            response = T.R_invalid
         await ctx.send(response)
 
 @bot.command(name=T.c_buy_ammo)
@@ -174,7 +195,7 @@ async def buy_ammo(ctx, A, *a):
         try:
             response = view(ID, msg=B.buy_ammo(ID, A, *a))
         except:
-            response = 'Invalid Command'
+            response = T.R_invalid
         await ctx.send(response)
 
 @bot.command(name=T.c_buy_ship)
@@ -196,7 +217,7 @@ async def buy_zone(ctx, d):
             y = B.players[ID][T.P][1]+T.dirs[d][1][1]
             response = B.buy_zone(ID, x, y)
         except:
-            response = 'Invalid Command'
+            response = T.R_invalid
         await ctx.send(response)
 
 @bot.command(name=T.c_attack)
@@ -214,11 +235,15 @@ async def attack(ctx, x, y, a):
 async def symbol(ctx, s):
     ID = str(ctx.author.id)
     if joined(ID):
-        if len(s) > 1:
-            s = s[0]
-        else:
-            s = ' '
-        B.player_symbol(ID, s)
+        try:
+            if s:
+                if len(s) > 1:
+                    s = s[0]
+            else:
+                s = ' '
+            B.player_symbol(ID, s)
+        except:
+            response = T.R_invalid
 
 @bot.command(name=T.c_jump)
 async def jump(ctx, d, *a):
@@ -234,7 +259,7 @@ async def jump(ctx, d, *a):
                 B.step_player(ID, x, y)
             response = view(ID)
         except:
-            response = 'Invalid Command'
+            response = T.R_invalid
         await ctx.send(response)
 
 @bot.command(name=T.c_move)
@@ -263,7 +288,7 @@ async def turn(ctx, d):
             if d in T.dirs:
                 B.players[ID][T.v][B.players[ID][T.s]][T.r] = d
         except:
-            response = 'Invalid Command'
+            response = T.R_invalid
         await ctx.send(response)
 
 ### Owner Commands ###
@@ -277,7 +302,7 @@ async def load(ctx, sd):
 @bot.command(name='restart')
 async def restart(ctx, *a):
     can_do = False
-    response = "Permission Denied"
+    response = T.R_permission
     ID = str(ctx.author.id)
     if ID == OWNER:
         from os import system
@@ -302,7 +327,7 @@ async def restart(ctx, *a):
 async def shutdown(ctx, *a):
     ID = str(ctx.author.id)
     can_do = False
-    response = 'Permission Denied'
+    response = T.R_permission
     if ID == OWNER:
         response = "Session Ended"
         can_do = True
