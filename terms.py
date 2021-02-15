@@ -21,7 +21,8 @@ class Term:
         self.a_1 = 'torpedo'
         self.a_2 = 'mortar'
         self.a_3 = 'strike'
-        self.a_4 = 'nuke'
+        self.a_4 = 'drone'
+        self.a_5 = 'nuke'
 
         self.c_d = 'description'
         self.c_a = 'arguments'
@@ -38,6 +39,8 @@ class Term:
         self.c_mine = 'mine'
         self.c_pile = 'pile'
         self.c_sel = 'sel'
+        self.c_buy = 'buy'
+        self.c_sell = 'sell'
         self.c_symbol = 'symbol'
         self.c_attack = 'attack'
         self.c_buy_ammo = 'ammo'
@@ -77,48 +80,59 @@ class Term:
         self.m_silver = 'silver'
         self.m_copper = 'copper'
 
-        self.item = [
-                self.m_sediment, self.m_boulder, self.m_gravel,
-                self.m_stone, self.m_rock,
-                self.m_dirt, self.m_sand, self.m_silt, self.m_soil,
-                self.m_coal, self.m_clay, self.m_lime,
-                self.m_iron, self.m_gold, self.m_silver, self.m_copper
-                ]
+        self.item = {
+                self.m_sediment : 1,
+                self.m_boulder : 10,
+                self.m_gravel : 1,
+                self.m_stone : 5,
+                self.m_rock : 5,
+                self.m_dirt : 1,
+                self.m_sand : 1,
+                self.m_silt : 1,
+                self.m_soil : 1,
+                self.m_coal : 10,
+                self.m_clay : 5,
+                self.m_lime : 10,
+                self.m_iron : 25,
+                self.m_gold : 25000,
+                self.m_silver : 150,
+                self.m_copper : 75,
+                }
 
         self.drops = {
             self.m_sediment : {
-                self.m_clay : 1,
-                self.m_silt : 1,
+                self.m_clay : 5,
+                self.m_silt : 5,
                 },
             self.m_boulder : {
-                self.m_rock : 10,
-                self.m_stone : 5,
+                self.m_rock : 6,
+                self.m_stone : 4,
                 },
             self.m_stone : {
                 self.m_gold : 1,
                 self.m_silver : 2,
-                self.m_copper : 4,
-                self.m_gravel : 8,
+                self.m_copper : 3,
+                self.m_gravel : 4,
                 },
             self.m_rock : {
                 self.m_iron : 4,
-                self.m_gravel : 8,
+                self.m_gravel : 6,
                 },
             self.m_dirt : {
                 self.m_sand : 1,
-                self.m_clay : 2,
-                self.m_silt : 4,
-                self.m_soil : 8,
-                self.m_gravel : 1,
+                self.m_clay : 1,
+                self.m_silt : 2,
+                self.m_soil : 3,
+                self.m_gravel : 3,
                 },
             self.m_silt : {
-                self.m_clay : 1,
-                self.m_sand : 2,
-                self.m_gravel : 2,
+                self.m_clay : 2,
+                self.m_sand : 4,
+                self.m_gravel : 4,
                 },
             self.m_sand : {
-                self.m_clay : 1,
-                self.m_gravel : 1,
+                self.m_clay : 8,
+                self.m_gravel : 2
                 },
             }
 
@@ -156,11 +170,12 @@ class Term:
             }
 
         self.ammo = {# Dimension, Worth, Damage
-            self.a_0 : [1,0,1],
-            self.a_1 : [1,0,1],
-            self.a_2 : [3,10,2],
-            self.a_3 : [6,50,2],
-            self.a_4 : [7,50000,4],
+            self.a_0 : [1,100,1],
+            self.a_1 : [1,100,1],
+            self.a_2 : [3,250,2],
+            self.a_3 : [5,5000,2],
+            self.a_4 : [7,7500,2],
+            self.a_5 : [9,50000,4],
             }
 
         self.ship = {# Worth, Image
@@ -244,6 +259,16 @@ class Term:
                     self.c_a : 'index',
                     self.c_o : ''
                     },
+                self.c_buy : {
+                    self.c_d : 'Buys a chosen material',
+                    self.c_a : '',
+                    self.c_o : ''
+                    },
+                self.c_sell : {
+                    self.c_d : 'Sells a chosen material',
+                    self.c_a : '',
+                    self.c_o : ''
+                    },
                 self.c_refine : {
                     self.c_d : 'Refines a chosen material',
                     self.c_a : '',
@@ -319,6 +344,12 @@ class Term:
             if i == len(self.drops)-1:
                 end = ''
             data[self.c_refine][self.c_a] += "{}{}".format(d, end)
+        for i, d in enumerate(self.item):
+            end = ', '
+            if i == len(self.item)-1:
+                end = ''
+            data[self.c_buy][self.c_a] += "{}{}".format(d, end)
+            data[self.c_sell][self.c_a] += "{}{}".format(d, end)
 
         return data
 

@@ -265,6 +265,40 @@ class BattleHost:
 
 
 
+    def buy_material(self, player, m, *a):
+        count = 0
+        amnt = 1
+        if a:
+            amnt += int(a[0])-1
+        for s in range(amnt):
+            if self.players[player][T.c] >= T.item[m]:
+                self.players[player][T.I][m] += 1
+                self.players[player][T.c] -= T.item[m]
+                count += 1
+            else:
+                amnt -= 1
+        if count == 0 or count > 1:
+            plr = 's'
+        return "You purchased {} {} for {}".format(count, m, count*T.item[m])
+
+    def sell_material(self, player, m, *a):
+        count = 0
+        amnt = 1
+        if a:
+            amnt += int(a[0])-1
+        for s in range(amnt):
+            if self.players[player][T.I][m] > 0:
+                self.players[player][T.I][m] -= 1
+                self.players[player][T.c] += T.item[m]
+                count += 1
+            else:
+                amnt -= 1
+        if count == 0 or count > 1:
+            plr = 's'
+        return "You sold {} {} for {}".format(count, m, count*T.item[m])
+
+
+
     def buy_ammo(self, player, A, *a):
         plr = ''
         count = 0
@@ -348,21 +382,22 @@ class BattleHost:
     def take_damage(self, player, v, atk, dmg):
         x, y = self.players[player][T.v][v][T.p][0], self.players[player][T.v][v][T.p][1]
         size = int(T.img*.5)
-        for i in range(-size, size):
-            for j in range(-size, size):
+        for i in range(-size, size+1):
+            for j in range(-size, size+1):
                 ship_index = get_index(x+i, y+j, T.chunk)
                 if ship_index == atk:
-                    #print('{} ship {} hit at ({},{})'.format(player, self.players[player][T.v][v][T.n], x+i, y+j))
                     self.players[player][T.v][v][T.i][get_index(i+size, j+size, T.img)] = clamp(
-                            self.players[player][T.v][v][T.i][get_index(i+size+1, j+size+1, T.img)]-dmg, 0, 4)
+                            self.players[player][T.v][v][T.i][get_index(i+size, j+size, T.img)]-dmg, 0, 4)
 
     def attack_ship(self, player, X, Y, A):
         if self.matrix[coords(X, Y)][T.o] != '':
             own = self.matrix[coords(X, Y)][T.o]
             if self.players[player][T.a][A] > 0:
                 self.players[player][T.a][A] -= 1
+                
                 dmg = T.ammo[A][2]
-                for atk in self.get_area(player, A):
+                area = self.get_area(player, A)
+                for atk in area:
                     for v, V in enumerate(self.players[own][T.v]):
                         if ((self.players[own][T.v][v][T.P][0] == X) and
                             (self.players[own][T.v][v][T.P][1] == Y)
@@ -422,9 +457,9 @@ class BattleHost:
                 if self.players[player][T.I][T.collect[count]] > 0:
                     self.matrix[coords(X, Y)][T.m][coords(x, y)] += 1
                     self.players[player][T.I][T.collect[count]] -= 1
+                    count += 1
                 else:
                     value -= 1
-                count += 1
             message = 'You used {} units of earth'.format(count)
         return message
 
