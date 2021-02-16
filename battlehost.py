@@ -82,6 +82,16 @@ def new_vessel(s):
 
 
 
+def rotate_matrix(mtrx, w):
+    rot = []
+    for y in range(w):
+        for x in range(w):
+            rot.append(0)
+    for y in range(w):
+        for x in range(w):
+            rot[get_index(y, x, w)] = mtrx[get_index(x, y, w)]
+    return rot
+
 def avrg_matrix(mtrx, f=int):
     return f(sum(mtrx.values())/len(mtrx))
 
@@ -170,7 +180,7 @@ def generate_world(sd):
 
 def show_progress(txt):
     prcnt = 100*T.loaded/T.complete
-    print('{}{}\n{}{}{:.1f}%'.format('\n'*64, txt, '.'*int(prcnt), ' '*(100-int(prcnt)), prcnt))
+    print('{}{} {:.1f}%\n|{}{}|'.format('\n'*64, txt, prcnt, '.'*int(prcnt), ' '*(100-int(prcnt))))
 
 
 
@@ -189,12 +199,12 @@ class BattleHost:
         self.matrix = generate_world(sd)
         self.generate_minimap()
         stop = time()
-        params = 'Dimensions:\n  World: ({},{})\n  Chunk: ({},{})\n\nWorld Octaves: {}\n\n  Blend Area: ({},{})\nChunk Octaves: {}\n  Blend Area:({},{})'.format(
-                T.world, T.world, T.chunk, T.chunk,
-                T.OCTS, T.world_x, T.world_y,
-                T.octs, T.chunk_x, T.chunk_y)
+        params = 'Seed: {}\n'.format(sd)
+        params += 'Dimensions:\n  World: ({},{})\n  Chunk: ({},{})\n'.format(T.world, T.world, T.chunk, T.chunk)
+        params += 'World Octaves: {}\n  Blend Area: ({},{})\n'.format(T.OCTS, T.world_x, T.world_y)
+        params += 'Chunk Octaves: {}\n  Blend Area:({},{})\n'.format(T.octs, T.chunk_x, T.chunk_y)
         print(self.get_minimap())
-        print("\nGenerating and blending {} tiles took {} seconds with parameters:\n\n{}\n\n".format(int((T.world*T.world)*(T.chunk*T.chunk)), stop-start, params))
+        print("\nGenerating and blending {} tiles took {} seconds with parameters:\n\n{}".format(int((T.world*T.world)*(T.chunk*T.chunk)), stop-start, params))
 
     def generate_minimap(self):
         mini = []
@@ -424,8 +434,20 @@ class BattleHost:
         self.players[player][T.v][sel][T.p][1] = y
 
     def rotate_ship(self, player, r):
+        d = {
+                'n':{'n' : 0, 's' : 2, 'e' : 3, 'w' : 1},
+                's':{'n' : 2, 's' : 0, 'e' : 1, 'w' : 3},
+                'e':{'n' : 1, 's' : 3, 'e' : 0, 'w' : 2},
+                'w':{'n' : 3, 's' : 1, 'e' : 2, 'w' : 0}
+            }
         sel = self.players[player][T.s]
+        new_img = []
+
+        for itr in range(d[self.players[player][T.v][sel][T.r]][r]):
+            new_img = rotate_matrix(self.players[player][T.v][sel][T.i], T.img)
+
         self.players[player][T.v][sel][T.r] = r
+        self.players[player][T.v][sel][T.i] = new_img
 
 
 
@@ -551,11 +573,14 @@ class BattleHost:
                 self.players[player][T.v][vessel][T.P][1] == Y):
                 for y in range(T.img):
                     for x in range(T.img):
-                        if self.players[player][T.v][vessel][T.i][get_index(x, y, T.img)] != 0:
-                            vx, vy = self.players[player][T.v][vessel][T.p][0], self.players[player][T.v][vessel][T.p][1]
-                            i = get_index(x+vx-size, y+vy-size, T.chunk)
-                            data[i] = T.part[self.players[player][T.v][vessel][T.i][get_index(x, y, T.img)]].format(
-                                    T.dirs[self.players[player][T.v][vessel][T.r]][0])
+                        try:
+                            if self.players[player][T.v][vessel][T.i][get_index(x, y, T.img)] != 0:
+                                vx, vy = self.players[player][T.v][vessel][T.p][0], self.players[player][T.v][vessel][T.p][1]
+                                i = get_index(x+vx-size, y+vy-size, T.chunk)
+                                data[i] = T.part[self.players[player][T.v][vessel][T.i][get_index(x, y, T.img)]].format(
+                                        T.dirs[self.players[player][T.v][vessel][T.r]][0])
+                        except:
+                            pass
         i = get_index(self.players[player][T.p][0], self.players[player][T.p][1], T.chunk)
         data[i] = '[]'
         return data

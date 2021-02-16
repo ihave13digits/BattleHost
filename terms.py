@@ -157,10 +157,9 @@ class Term:
         self.world_data = 'world_data'
         self.player_data = 'player_data'
 
-        self.tileset = ['██','▓▓','▒▒','░░','##','::',':.','.:','..','. ']
-        self.collect, self.tile = self.generate_tiles([30, 20, 12, 15, 8, 5, 3, 3, 2, 2],
-                [self.m_sediment,self.m_silt,self.m_sand,self.m_sand,self.m_soil,
-                self.m_dirt,self.m_gravel,self.m_stone,self.m_rock,self.m_boulder])
+        self.tileset = []
+        self.collect = []
+        self.tile = []
         self.part = [' {}','░{}','▒{}','▓{}','█{}']
         self.dirs = {
             'n' : ['▲', [0,-1]],
@@ -216,6 +215,24 @@ class Term:
                 ]],
             }
         self.cmnds = self.generate_commands()
+        
+        self.start()
+
+    def start(self):
+        data = self.generate_data([
+                ['██', self.m_sediment, 30],
+                ['▓▓', self.m_silt, 20],
+                ['▒▒', self.m_sand, 12],
+                ['░░', self.m_sand, 15],
+                ['##', self.m_soil, 8],
+                ['::', self.m_dirt, 5],
+                [':.', self.m_gravel, 3],
+                ['.:', self.m_stone, 3],
+                ['..', self.m_rock, 2],
+                ['. ', self.m_boulder, 2]])
+        self.collect = data['collect']
+        self.tileset = data['tileset']
+        self.tile = data['tiles']
 
     def generate_commands(self):
         data = {
@@ -353,11 +370,15 @@ class Term:
 
         return data
 
-    def generate_tiles(self, I, C):
+    def generate_data(self, D):
+        data = {}
+        tset = []
+        tile = []
         clct = []
-        data = []
-        for i, t in enumerate(self.tileset):
-            for itr in range(I[i]):
-                clct.append(C[i])
-                data.append(t)
-        return clct, data
+        for i in range(len(D)):
+            for itr in range(D[i][2]):
+                tile.append(D[i][0])
+                clct.append(D[i][1])
+            tset.append(D[i][0])
+        data = {'tileset' : tset, 'tiles' : tile, 'collect' : clct}
+        return data
