@@ -16,10 +16,11 @@ def debug():
     B.buy_ammo(ID, 'missile', 10000)
     B.buy_ammo(ID, 'torpedo', 5000)
     B.buy_ammo(ID, 'mortar', 1000)
+    B.buy_ammo(ID, 'drone', 500)
     B.buy_ammo(ID, 'strike', 500)
     B.buy_ammo(ID, 'nuke', 100)
-    B.step_cursor(ID, 10, 0)
-    B.step_cursor(ID, 0, 10)
+    #B.step_cursor(ID, 10, 0)
+    #B.step_cursor(ID, 0, 10)
     #B.save_data()
     #B.attack_ship(ID, 10, 18, 'missile')
 
@@ -65,10 +66,10 @@ def show_player(ID):
             img = '  {}: {}\n'.format(i, B.players[ID][T.v][i][T.n])
             hp = 0
             for c, cell in enumerate(B.players[ID][T.v][i][T.i]):
-                end = ''
+                end = ' '
                 if c % T.img == 0:
                     end = '\n'
-                img += T.part[cell].format(end)
+                img += '{}{}'.format(end, T.part[cell].format(''))
                 hp += cell
             X, Y = B.players[ID][T.v][i][T.P][0], B.players[ID][T.v][i][T.P][1]
             x, y = B.players[ID][T.v][i][T.p][0], B.players[ID][T.v][i][T.p][1]
@@ -249,10 +250,11 @@ async def attack(ctx, x, y, a):
     ID = str(ctx.author.id)
     if joined(ID) and a:
         response = view(ID)
-        #try:
-        B.attack_ship(ID, int(x), int(y), a)
-        #except:
-        #    pass
+        try:
+            B.attack_ship(ID, int(x), int(y), a)
+            response = view(ID)
+        except:
+            pass
         await ctx.send(response)
 
 @bot.command(name=T.c_symbol)
@@ -299,8 +301,6 @@ async def move(ctx, d, *a):
             y = T.dirs[d][1][1]
             B.step_cursor(ID, x, y)
         response = view(ID)
-        #except:
-        #    response = 'Invalid Command'    
         await ctx.send(response)
 
 @bot.command(name=T.c_turn)
@@ -309,8 +309,8 @@ async def turn(ctx, d):
     if joined(ID):
         response = view(ID)
         try:
-            if d in T.dirs:
-                B.players[ID][T.v][B.players[ID][T.s]][T.r] = d
+            B.rotate_ship(ID, d)
+            response = view(ID)
         except:
             response = T.R_invalid
         await ctx.send(response)
