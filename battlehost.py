@@ -105,7 +105,7 @@ def blend_matrix(mtrx):
             for j in range(-T.chunk_y, T.chunk_y):
                 for i in range(-T.chunk_x, T.chunk_x):
                     v = round( ((mtrx[get_index(x, y, w)][0]) + (mtrx[get_index(i, j, w)][0])) / 2 )
-                    BLND.append(v+randint(-1, 1))
+                    BLND.append(v)
             bv = 0
             for v in BLND:
                 bv += v
@@ -123,7 +123,7 @@ def blend_values(mtrx, w, W, H):
                 for i in range(-W, W):
                     cmn = round( ((mtrx[get_index(x, y, w)][0]) + (mtrx[get_index(i, j, w)][0])) / 2 )
                     cmx = round( ((mtrx[get_index(x, y, w)][1]) + (mtrx[get_index(i, j, w)][1])) / 2 )
-                    BLND.append([cmn, cmx+randint(1, 5)])
+                    BLND.append([cmn, cmx])
             bv = 0
             bV = 0
             for v in BLND:
@@ -136,15 +136,32 @@ def blend_values(mtrx, w, W, H):
 
 def new_chunk(mn, mx):
     data = {}
+    itrs = []
     vals = []
-    for y in range(T.chunk):
-        for x in range(T.chunk):
-            cmn = randint(0, mn)
-            cmx = randint(mn, mx)
-            cmn = clamp(cmn, 0, cmx)
-            vals.append([cmn, cmx])
+    for itr in range(4):
+        b = randint(-1, T.r_range)
+        iv = []
+        for y in range(int(T.chunk/2)):
+            for x in range(int(T.chunk/2)):
+                cmn = randint(0, mn)
+                cmx = randint(mn, mx)
+                cmn = clamp(cmn, 0, cmx)
+                iv.append([cmn, cmx+b])
+        itrs.append(iv)
+    
+    for y in range(int(T.world/2)):
+        for x in range(int(T.world/2)):
+            vals.append(itrs[0][get_index(x, y, int(T.world/2))])
+        for x in range(int(T.world/2)):
+            vals.append(itrs[1][get_index(x, y, int(T.world/2))])
+        for x in range(int(T.world/2)):
+            vals.append(itrs[2][get_index(x, y, int(T.world/2))])
+        for x in range(int(T.world/2)):
+            vals.append(itrs[3][get_index(x, y, int(T.world/2))])
+    
     for o in range(T.octs):
         blnd = blend_values(vals, T.chunk, T.chunk_x, T.chunk_y)
+    
     blndd = blend_matrix(blnd)
     for y in range(T.chunk):
         for x in range(T.chunk):
@@ -156,12 +173,28 @@ def generate_world(sd):
     seed(sd)
     data = {}
     MAX = len(T.tile)
+    itrs = []
     vals = []
-    for y in range(T.world):
-        for x in range(T.world):
-            mn = randint(0, int(MAX*T.r_low))
-            mx = randint(int(MAX*T.r_high), MAX)
-            vals.append([mn, mx])
+    for itr in range(4):
+        b = randint(-1, T.r_range)
+        iv = []
+        for y in range(int(T.world/2)):
+            for x in range(int(T.world/2)):
+                mn = randint(0, int(MAX*T.r_low))
+                mx = randint(int(MAX*T.r_high), MAX)
+                iv.append([mn, mx+b])
+        itrs.append(iv)
+    
+    for y in range(int(T.world/2)):
+        for x in range(int(T.world/2)):
+            vals.append(itrs[0][get_index(x, y, int(T.world/2))])
+        for x in range(int(T.world/2)):
+            vals.append(itrs[1][get_index(x, y, int(T.world/2))])
+        for x in range(int(T.world/2)):
+            vals.append(itrs[2][get_index(x, y, int(T.world/2))])
+        for x in range(int(T.world/2)):
+            vals.append(itrs[3][get_index(x, y, int(T.world/2))])
+
     blnd = vals
     for B in range(T.OCTS):
         blnd = blend_values(blnd, T.world, T.world_x, T.world_y)
@@ -179,8 +212,12 @@ def generate_world(sd):
     return data
 
 def show_progress(txt):
+    chars = ['█',' ','▏','▎','▍','▌','▋','▊','▉','█']
     prcnt = 100*T.loaded/T.complete
-    print('{}{} {:.1f}%\n|{}{}|'.format('\n'*64, txt, prcnt, '.'*int(prcnt), ' '*(100-int(prcnt))))
+    l = 48-int(int(len(txt))/2)
+
+    print(' {}{}{} {:.1f}%\n'.format('\n'*64, ' '*l, txt, prcnt))
+    print(' [{}{}{}]'.format('█'*int(prcnt-1), chars[int(prcnt)%len(chars)], ' '*(99-int(prcnt-1))))
 
 
 

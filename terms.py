@@ -138,14 +138,15 @@ class Term:
 
         self.r_low = .98
         self.r_high = .98
+        self.r_range = 25
 
         self.img = 5
-        self.octs = 1
-        self.OCTS = 1
+        self.octs = 4
+        self.OCTS = 8
         self.chunk_x = 1
         self.chunk_y = 1
-        self.world_x = 1
-        self.world_y = 1
+        self.world_x = 2
+        self.world_y = 2
         self.chunk = 20
         self.world = 20
         self.output = 48
@@ -220,15 +221,15 @@ class Term:
 
     def start(self):
         data = self.generate_data([
-                ['██', self.m_sediment, 30],
-                ['▓▓', self.m_silt, 20],
-                ['▒▒', self.m_sand, 12],
-                ['░░', self.m_sand, 15],
-                ['##', self.m_soil, 8],
-                ['::', self.m_dirt, 5],
-                [':.', self.m_gravel, 3],
-                ['.:', self.m_stone, 3],
-                ['..', self.m_rock, 2],
+                ['██', self.m_sediment, 22],
+                ['▓▓', self.m_silt, 16],
+                ['▒▒', self.m_sand, 13],
+                ['░░', self.m_sand, 14],
+                ['##', self.m_soil, 10],
+                ['::', self.m_dirt, 8],
+                [':.', self.m_gravel, 6],
+                ['.:', self.m_stone, 5],
+                ['..', self.m_rock, 4],
                 ['. ', self.m_boulder, 2]])
         self.collect = data['collect']
         self.tileset = data['tileset']
